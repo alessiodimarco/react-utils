@@ -1,0 +1,54 @@
+// Polling
+export interface notificationsResponse {
+  status: NotificationPushStatus;
+}
+
+export enum NotificationPushStatus {
+  REQ_CANCELED = 0,
+  REQ_CREATED = 10,
+  REQ_SENT = 20,
+  REQ_CONFIRMED = 100,
+}
+
+export const checkRequestNotification: (status: string) => AxiosPromise<notificationsResponse> = (reqToken: string) => {
+  const config = {
+    method: "post",
+    url: `${apiBasePath}/estore/v1/store-authentication-requests/get-status`,
+    headers: {
+      //Authorization: `Bearer ${token}`,
+      Authorization: `Bearer TOKENDIPROVA`,
+    },
+
+    data: {
+      requestToken: reqToken,
+    },
+  };
+  return axios(config);
+};
+
+  /* Polling notifications */
+  const checkNotification: (retries?: number) => void = (retries: number = 0) => {
+    console.log("Notifica push con auth token :" + notificationToken);
+    return Promise.resolve(checkRequestNotification(notificationToken))
+      .then(res => {
+        console.log(res.data.status);
+        if (res.data.status === NotificationPushStatus.REQ_CONFIRMED) {
+          setMercantModalOpened(prev => ({ ...prev, status: modalStatus.Success }));
+        } else if (res.data.status === NotificationPushStatus.REQ_CANCELED) {
+          setMercantModalOpened(prev => ({ ...prev, status: modalStatus.Error }));
+        } else if (retries >= notificationMaxTry) {
+          setMercantModalOpened(prev => ({ ...prev, status: modalStatus.Error }));
+          console.log("Tentativi massimi superati");
+        } else {
+          // try again after delay
+          return delay(notificationTimeout).then(() => checkNotification(retries + 1));
+        }
+      })
+      .catch(err => console.log(err));
+  };
+  
+    useEffect(() => {
+    if (notificationToken != "") checkNotification();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [notificationToken]);
+
